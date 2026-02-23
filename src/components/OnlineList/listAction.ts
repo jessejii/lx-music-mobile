@@ -4,11 +4,14 @@ import { playList, playNext } from '@/core/player/player'
 import { addTempPlayList } from '@/core/player/tempPlayList'
 import settingState from '@/store/setting/state'
 import { getListMusicSync } from '@/utils/listManage'
-import { confirmDialog, openUrl, shareMusic, toast } from '@/utils/tools'
+import { confirmDialog, openUrl, shareMusic, toast, requestStoragePermission } from '@/utils/tools'
 import { addDislikeInfo, hasDislike } from '@/core/dislikeList'
 import playerState from '@/store/player/state'
 import musicSdk from '@/utils/musicSdk'
 import { toOldMusicInfo } from '@/utils'
+import { getMusicUrl } from '@/core/music'
+import { downloadFile } from '@/utils/fs'
+import { temporaryDirectoryPath } from '@/utils/fs'
 
 export const handlePlay = (musicInfo: LX.Music.MusicInfoOnline) => {
   void addListMusics(LIST_IDS.DEFAULT, [musicInfo], settingState.setting['list.addMusicLocationType']).then(() => {
@@ -50,6 +53,58 @@ export const handleDislikeMusic = async(musicInfo: LX.Music.MusicInfoOnline) => 
   toast(global.i18n.t('lists_dislike_music_add_tip'))
   if (hasDislike(playerState.playMusicInfo.musicInfo)) {
     void playNext(true)
+  }
+}
+
+export const handleDownloadMusic = async(musicInfo: LX.Music.MusicInfoOnline) => {
+  // 检查存储权限
+  const hasPermission = await requestStoragePermission()
+  if (!hasPermission) {
+    toast(global.i18n.t('download_permission_denied'))
+    return
+  }
+
+  try {
+    toast(global.i18n.t('download_start'))
+
+    // 获取音乐URL
+    const url = await getMusicUrl({ musicInfo, isRefresh: false })
+
+    if (!url) {
+      toast(global.i18n.t('download_failed'))
+      return
+    }
+
+    // 生成文件名
+    const fileName = settingState.setting['download.fileName']
+      .replace('歌名', musicInfo.name)
+      .replace('歌手', musicInfo.singer)
+      .replace(/\s/g, '') + '.mp3'
+
+    // 下载路径
+    const downloadPath = `${temporaryDirectoryPath}/${fileName}`
+
+    // 开始下载
+    const downloadResult = downloadFile(url, downloadPath, {
+      progressInterval: 100,
+      progress: (res) => {
+        const progress = (res.bytesWritten / res.contentLength) * 100
+        if (progress >= 100) {
+          toast(global.i18n.t('download_success'))
+        }
+      },
+    })
+
+    const result = await downloadResult.promise
+
+    if (result.statusCode === 200) {
+      toast(global.i18n.t('download_success'))
+    } else {
+      toast(global.i18n.t('download_failed'))
+    }
+  } catch (error) {
+    console.error('Download error:', error)
+    toast(global.i18n.t('download_failed'))
   }
 }
 
