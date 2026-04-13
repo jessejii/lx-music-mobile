@@ -1,10 +1,10 @@
 import { memo, useCallback, useMemo, useRef } from 'react'
 
-import { View } from 'react-native'
+import { View, TouchableOpacity } from 'react-native'
 
 import SubTitle from '../../components/SubTitle'
 import CheckBox from '@/components/common/CheckBox'
-import { createStyle } from '@/utils/tools'
+import { createStyle, clipboardWriteText, toast } from '@/utils/tools'
 import { setApiSource } from '@/core/apiSource'
 import { useI18n } from '@/lang'
 import apiSourceInfo from '@/utils/musicSdk/api-source-info'
@@ -15,6 +15,11 @@ import UserApiEditModal, { type UserApiEditModalType } from './UserApiEditModal'
 import Text from '@/components/common/Text'
 import { useTheme } from '@/store/theme/hook'
 // import { importUserApi, removeUserApi } from '@/core/userApi'
+
+const sourceLinks = [
+  'https://raw.githubusercontent.com/pdone/lx-music-source/main/sixyin/latest.js',
+  'https://raw.githubusercontent.com/pdone/lx-music-source/main/sixyin/latest.js'
+]
 
 const apiSourceList = apiSourceInfo.map(api => ({
   id: api.id,
@@ -55,6 +60,7 @@ const Item = ({ id, name, desc, statusLabel, change }: {
 
 export default memo(() => {
   const t = useI18n()
+  const theme = useTheme()
   const list = useMemo(() => apiSourceList.map(s => ({
     // @ts-expect-error
     name: t(`setting_basic_source_${s.id}`) || s.name,
@@ -95,6 +101,11 @@ export default memo(() => {
     modalRef.current?.show()
   }
 
+  const handleCopyLink = useCallback((link: string) => {
+    clipboardWriteText(link)
+    toast('复制成功')
+  }, [])
+
   return (
     <SubTitle title={t('setting_basic_source')}>
       <View style={styles.list}>
@@ -107,6 +118,22 @@ export default memo(() => {
       </View>
       <View style={styles.btn}>
         <Button onPress={handleShow}>{t('setting_basic_source_user_api_btn')}</Button>
+      </View>
+      <View>
+        {
+          sourceLinks.map((link, index) => (
+            <View key={index} style={[styles.linkItem, { backgroundColor: '#000000' }]}>
+              <Text style={styles.linkText} size={12} color={theme['c-500']} numberOfLines={1}>{link}</Text>
+              <TouchableOpacity
+                style={[styles.copyBtn, { backgroundColor: theme['c-primary'] }]}
+                onPress={() => handleCopyLink(link)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.copyBtnText} size={12} color={theme['c-primary-font']}>复制</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        }
       </View>
       <UserApiEditModal ref={modalRef} />
     </SubTitle>
@@ -131,6 +158,26 @@ const styles = createStyle({
 
   },
   sourceStatus: {
+
+  },
+  linkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+  },
+  linkText: {
+    flex: 1,
+    marginRight: 10,
+  },
+  copyBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+  },
+  copyBtnText: {
 
   },
 })

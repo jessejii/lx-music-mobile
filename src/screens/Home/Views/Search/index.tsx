@@ -1,5 +1,5 @@
-import { useRef, useEffect } from 'react'
-import { type LayoutChangeEvent, View } from 'react-native'
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { type LayoutChangeEvent, View, Keyboard } from 'react-native'
 
 // import music from '@/utils/musicSdk'
 // import InsetShadow from 'react-native-inset-shadow'
@@ -14,6 +14,7 @@ import { createStyle } from '@/utils/tools'
 import TipList, { type TipListType } from './TipList'
 import List, { type ListType } from './List'
 import { addHistoryWord } from '@/core/search/search'
+import SoftKeyboard from '@/components/common/SoftKeyboard'
 
 
 interface SearchInfo {
@@ -29,6 +30,8 @@ export default () => {
   const layoutHeightRef = useRef<number>(0)
   const searchInfo = useRef<SearchInfo>({ temp_source: 'kw', source: 'kw', searchType: 'music' })
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [showKeyboard, setShowKeyboard] = useState(false)
+  const inputTextRef = useRef('')
 
   useEffect(() => {
     void getSearchSetting().then(info => {
@@ -45,6 +48,7 @@ export default () => {
           break
       }
       headerBarRef.current?.setText(searchState.searchText)
+      inputTextRef.current = searchState.searchText
       listRef.current?.loadList(searchState.searchText, searchInfo.current.source, searchInfo.current.searchType)
     })
 
@@ -71,19 +75,22 @@ export default () => {
     listRef.current?.loadList(searchState.searchText, source, searchInfo.current.searchType)
   }
   const handleTipSearch: HeaderBarProps['onTipSearch'] = (text) => {
+    inputTextRef.current = text
     setTimeout(() => {
       searchTipListRef.current?.search(text, layoutHeightRef.current)
     }, 500)
   }
-  const handleHideTipList = () => {
+  const handleHideTipList = useCallback(() => {
+    if (showKeyboard) return
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
     }
     searchTipListRef.current?.hide()
-  }
+  }, [showKeyboard])
   const handleSearch: HeaderBarProps['onSearch'] = (text) => {
     handleHideTipList()
+    inputTextRef.current = text
     searchTipListRef.current?.search(text, layoutHeightRef.current)
     headerBarRef.current?.setText(text)
     headerBarRef.current?.blur()
@@ -97,6 +104,48 @@ export default () => {
     }, 500)
   }
 
+  const handleToggleKeyboard = useCallback(() => {
+    setShowKeyboard((prev: boolean) => {
+      if (!prev) {
+        // When opening soft keyboard, dismiss system keyboard
+        Keyboard.dismiss()
+      }
+      return !prev
+    })
+  }, [])
+
+  const handleKeyPress = useCallback((key: string) => {
+    const newText = inputTextRef.current + key
+    inputTextRef.current = newText
+    headerBarRef.current?.setText(newText)
+    headerBarRef.current?.focus()
+    searchTipListRef.current?.search(newText, layoutHeightRef.current)
+  }, [])
+
+  const handleBackspace = useCallback(() => {
+    const newText = inputTextRef.current.slice(0, -1)
+    inputTextRef.current = newText
+    headerBarRef.current?.setText(newText)
+    headerBarRef.current?.focus()
+    searchTipListRef.current?.search(newText, layoutHeightRef.current)
+  }, [])
+
+  const handleSpace = useCallback(() => {
+    const newText = inputTextRef.current + ' '
+    inputTextRef.current = newText
+    headerBarRef.current?.setText(newText)
+    headerBarRef.current?.focus()
+    searchTipListRef.current?.search(newText, layoutHeightRef.current)
+  }, [])
+
+  const handleSubmit = useCallback(() => {
+    handleSearch(inputTextRef.current)
+  }, [handleSearch])
+
+  const handleCloseKeyboard = useCallback(() => {
+    setShowKeyboard(false)
+  }, [])
+
   return (
     <View style={styles.container}>
       <HeaderBar
@@ -106,11 +155,21 @@ export default () => {
         onSearch={handleSearch}
         onHideTipList={handleHideTipList}
         onShowTipList={handleShowTipList}
+        onToggleKeyboard={handleToggleKeyboard}
+        showKeyboard={showKeyboard}
       />
       <View style={styles.content} onLayout={handleLayout}>
         <TipList ref={searchTipListRef} onSearch={handleSearch} />
         <List ref={listRef} onSearch={handleSearch} />
       </View>
+      <SoftKeyboard
+        visible={showKeyboard}
+        onKeyPress={handleKeyPress}
+        onBackspace={handleBackspace}
+        onSpace={handleSpace}
+        onSubmit={handleSubmit}
+        onClose={handleCloseKeyboard}
+      />
     </View>
   )
 }

@@ -24,16 +24,19 @@ export interface HeaderBarProps {
   onSearch: SearchInputProps['onSubmit']
   onHideTipList: SearchInputProps['onBlur']
   onShowTipList: SearchInputProps['onTouchStart']
+  onToggleKeyboard?: () => void
+  showKeyboard?: boolean
 }
 
 export interface HeaderBarType {
   setSourceList: SourceSelectorType['setSourceList']
   setText: SearchInputType['setText']
   blur: SearchInputType['blur']
+  focus: SearchInputType['focus']
 }
 
 
-export default forwardRef<HeaderBarType, HeaderBarProps>(({ onSourceChange, onTipSearch, onSearch, onHideTipList, onShowTipList }, ref) => {
+export default forwardRef<HeaderBarType, HeaderBarProps>(({ onSourceChange, onTipSearch, onSearch, onHideTipList, onShowTipList, onToggleKeyboard, showKeyboard }, ref) => {
   const sourceSelectorRef = useRef<SourceSelectorType>(null)
   const searchInputRef = useRef<SearchInputType>(null)
   const theme = useTheme()
@@ -47,6 +50,9 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ onSourceChange, onTi
     },
     blur() {
       searchInputRef.current?.blur()
+    },
+    focus() {
+      searchInputRef.current?.focus()
     },
   }), [])
 
@@ -62,6 +68,8 @@ export default forwardRef<HeaderBarType, HeaderBarProps>(({ onSourceChange, onTi
         onSubmit={onSearch}
         onBlur={onHideTipList}
         onTouchStart={onShowTipList}
+        onToggleKeyboard={onToggleKeyboard}
+        showKeyboard={showKeyboard}
       />
     </View>
   )
